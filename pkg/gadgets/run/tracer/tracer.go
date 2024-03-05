@@ -376,6 +376,30 @@ func (t *Tracer) attachProgram(gadgetCtx gadgets.GadgetContext, p *ebpf.ProgramS
 		case strings.HasPrefix(p.SectionName, "kretprobe/"):
 			logger.Debugf("Attaching kretprobe %q to %q", p.Name, p.AttachTo)
 			return link.Kretprobe(p.AttachTo, prog, nil)
+		case strings.HasPrefix(p.SectionName, "uprobe/"):
+			// TODO: Add check: "uprobe can only be used with --host at this moment"
+			logger.Debugf("Attaching uprobe %q to %q", p.Name, p.AttachTo)
+			parts := strings.Split(p.AttachTo, ":")
+			if len(parts) < 2 {
+				return nil, fmt.Errorf("invalid section name %q", p.AttachTo)
+			}
+			ex, err := link.OpenExecutable(parts[0])
+			if err != nil {
+				return nil, fmt.Errorf("Unable to open executable: %q", parts[0])
+			}
+			return ex.Uprobe(parts[1], prog, nil)
+		case strings.HasPrefix(p.SectionName, "uretprobe/"):
+			// TODO: Add check: "uretprobe can only be used with --host at this moment"
+			logger.Debugf("Attaching uretprobe %q to %q", p.Name, p.AttachTo)
+			parts := strings.Split(p.AttachTo, ":")
+			if len(parts) < 2 {
+				return nil, fmt.Errorf("invalid section name %q", p.AttachTo)
+			}
+			ex, err := link.OpenExecutable(parts[0])
+			if err != nil {
+				return nil, fmt.Errorf("Unable to open executable: %q", parts[0])
+			}
+			return ex.Uretprobe(parts[1], prog, nil)
 		}
 		return nil, fmt.Errorf("unsupported section name %q for program %q", p.Name, p.SectionName)
 	case ebpf.TracePoint:
