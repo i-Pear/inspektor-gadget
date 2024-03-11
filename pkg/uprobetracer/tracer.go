@@ -171,17 +171,22 @@ func searchForLibrary(containerPid uint32, filePath string) []string {
 }
 
 // attach ebpf program to a self-hosted inode
-func (t *Tracer[Event]) attachEbpf(file *os.File) (link.Link, error) {
+func (t *Tracer[Event]) attachEbpf(file *os.File, containerPid uint32) (link.Link, error) {
 	attachPath := path.Join(host.HostProcFs, "self/fd/", fmt.Sprint(file.Fd()))
 	ex, err := link.OpenExecutable(attachPath)
 	if err != nil {
 		return nil, fmt.Errorf("opening self-hosted file describer: %q, %q", attachPath, err.Error())
 	}
+	option := &link.UprobeOptions{
+		PID: int(containerPid),
+	}
 	switch t.progType {
 	case ProgUprobe:
-		return ex.Uprobe(t.attachSymbol, t.prog, nil)
+		fmt.Println("PID: ", option.PID)
+		return ex.Uprobe(t.attachSymbol, t.prog, option)
 	case ProgUretprobe:
-		return ex.Uretprobe(t.attachSymbol, t.prog, nil)
+		fmt.Println("PID: ", option.PID)
+		return ex.Uretprobe(t.attachSymbol, t.prog, option)
 	default:
 		return nil, fmt.Errorf("attaching to inode: unsupported prog type: %q", t.progType)
 	}
@@ -222,7 +227,7 @@ func (t *Tracer[Event]) attach(containerPid uint32) {
 		if !exists {
 			// TODO: remove these `[DEBUG]` info if stable
 			fmt.Println("[DEBUG] attaching uprobe to: ", filePath)
-			progLink, _ := t.attachEbpf(file)
+			progLink, _ := t.attachEbpf(file, containerPid)
 			if progLink == nil {
 				fmt.Println("[DEBUG] attach uprobe ebpf failed")
 			}
