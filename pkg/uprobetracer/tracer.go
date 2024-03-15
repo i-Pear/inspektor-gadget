@@ -40,6 +40,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -177,15 +178,17 @@ func (t *Tracer[Event]) attachEbpf(file *os.File, containerPid uint32) (link.Lin
 	if err != nil {
 		return nil, fmt.Errorf("opening self-hosted file describer: %q, %q", attachPath, err.Error())
 	}
+
 	option := &link.UprobeOptions{
-		PID: int(containerPid),
+		//PID: int(containerPid),
 	}
+
 	switch t.progType {
 	case ProgUprobe:
-		fmt.Println("PID: ", option.PID)
+		//fmt.Println("PID: ", option.PID)
 		return ex.Uprobe(t.attachSymbol, t.prog, option)
 	case ProgUretprobe:
-		fmt.Println("PID: ", option.PID)
+		//fmt.Println("PID: ", option.PID)
 		return ex.Uretprobe(t.attachSymbol, t.prog, option)
 	default:
 		return nil, fmt.Errorf("attaching to inode: unsupported prog type: %q", t.progType)
@@ -199,6 +202,7 @@ func (t *Tracer[Event]) attach(containerPid uint32) {
 
 	for _, filePath := range attachFilePaths {
 		file, err := os.Open(filePath)
+		println(filePath)
 		if err != nil {
 			continue
 		}
@@ -220,16 +224,19 @@ func (t *Tracer[Event]) attach(containerPid uint32) {
 		}
 
 		fileUUID := inodeUUID{fsStat.Fsid, stat.Ino}
+		fileUUID.inode = uint64(containerPid)
 		attachedUUIDs = append(attachedUUIDs, fileUUID)
+		fmt.Println("[DEBUG] attach: ", t.attachSymbol)
 		fmt.Printf("[DEBUG] attach: fsID: [%d %d], ino: %d, dev: %d, rdev:%d\n", fsStat.Fsid.Val[0], fsStat.Fsid.Val[1], stat.Ino, stat.Dev, stat.Rdev)
 
 		inode, exists := t.inodeRefCount[fileUUID]
 		if !exists {
 			// TODO: remove these `[DEBUG]` info if stable
 			fmt.Println("[DEBUG] attaching uprobe to: ", filePath)
-			progLink, _ := t.attachEbpf(file, containerPid)
+			progLink, err := t.attachEbpf(file, containerPid)
+			time.Sleep(time.Second)
 			if progLink == nil {
-				fmt.Println("[DEBUG] attach uprobe ebpf failed")
+				fmt.Println("[DEBUG] attach uprobe ebpf failed: ", err.Error())
 			}
 			t.inodeRefCount[fileUUID] = &inodeKeeper{1, file, progLink}
 		} else {
