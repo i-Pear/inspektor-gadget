@@ -65,3 +65,9 @@ structs:
         width: 16
         alignment: left
         ellipsis: end
+    - name: kernel_stack
+      description: Kernel stack
+      attributes:
+        width: 20
+        alignment: left
+        ellipsis: end

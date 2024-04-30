@@ -18,6 +18,7 @@
 #include <gadget/types.h>
 #include <gadget/macros.h>
 #include <gadget/core_fixes.bpf.h>
+#include <gadget/stack_map.h>
 
 #define GADGET_TYPE_TRACING
 #include <gadget/sockets-map.h>
@@ -50,6 +51,8 @@ struct event {
 	enum tcp_state state;
 	__u8 tcpflags;
 	enum skb_drop_reason reason;
+	gadget_kernel_stack kernel_stack;
+
 	__u32 netns;
 
 	// The original gadget has instances of these fields for both process context and
@@ -109,6 +112,7 @@ static __always_inline int __trace_tcp_drop(void *ctx, struct sock *sk,
 	event->timestamp = bpf_ktime_get_boot_ns();
 	event->state = BPF_CORE_READ(sk, __sk_common.skc_state);
 	event->reason = reason;
+	event->kernel_stack = gadget_get_kernel_stack(ctx);
 	bpf_probe_read_kernel(&event->tcpflags, sizeof(event->tcpflags),
 			      &tcphdr->flags);
 
