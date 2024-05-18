@@ -15,13 +15,19 @@
 package ebpfoperator
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/cilium/ebpf/btf"
 
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/datasource"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/gadget-service/api"
+	"github.com/inspektor-gadget/inspektor-gadget/pkg/kallsyms"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/operators"
+)
+
+const (
+	StackIdKernelType = "type:gadget_kernel_stack"
 )
 
 func byteSliceAsUint64(in []byte, signed bool, ds datasource.DataSource) uint64 {
@@ -106,9 +112,64 @@ func (i *ebpfInstance) initEnumConverter(gadgetCtx operators.GadgetContext) erro
 	return nil
 }
 
+func (i *ebpfInstance) initStackConverter(gadgetCtx operators.GadgetContext) error {
+	kernelSymbolResolver, err := kallsyms.NewKAllSyms()
+	if err != nil {
+		return err
+	}
+	for _, ds := range gadgetCtx.GetDataSources() {
+		for _, in := range ds.GetFieldsWithTag(StackIdKernelType) {
+			if in == nil {
+				continue
+			}
+			if i.kernelStackIdMap == nil {
+				return errors.New("kernel stack map is not initialized but used. " +
+					"if you are using `gadget_kernel_stack` as event field, " +
+					"try to include <gadget/kernel_stack_map.h>")
+			}
+			in.SetHidden(true, false)
+			out, err := ds.AddField(in.Name()+"_symbolized", api.Kind_String)
+			if err != nil {
+				return err
+			}
+			converter := func(ds datasource.DataSource, data datasource.Data) error {
+				inBytes := in.Get(data)
+				stackId := ds.ByteOrder().Uint32(inBytes)
+				if stackId == 0 {
+					out.Set(data, []byte{})
+					return nil
+				}
+
+				stack := [perfMaxStackDepth]uint64{}
+				err = i.kernelStackIdMap.Lookup(stackId, &stack)
+				if err != nil {
+					return fmt.Errorf("stack with ID %d is lost: %w", stackId, err)
+				}
+
+				outString := ""
+				for depth, addr := range stack {
+					if addr == 0 {
+						break
+					}
+					outString += fmt.Sprintf("[%d]%s; ", depth, kernelSymbolResolver.LookupByInstructionPointer(addr))
+				}
+
+				out.Set(data, []byte(outString))
+				return nil
+			}
+			i.converters[ds] = append(i.converters[ds], converter)
+		}
+	}
+	return nil
+}
+
 func (i *ebpfInstance) initConverters(gadgetCtx operators.GadgetContext) error {
 	if err := i.initEnumConverter(gadgetCtx); err != nil {
 		return fmt.Errorf("initializing enum converters: %w", err)
+	}
+
+	if err := i.initStackConverter(gadgetCtx); err != nil {
+		return fmt.Errorf("initializing stack converters: %w", err)
 	}
 
 	return nil

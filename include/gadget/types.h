@@ -38,4 +38,6 @@ typedef __u64 gadget_timestamp;
 // as string.
 typedef __u32 gadget_signal;
 
+typedef __u32 gadget_kernel_stack;
+
 #endif /* __TYPES_H */

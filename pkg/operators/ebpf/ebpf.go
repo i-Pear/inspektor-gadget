@@ -55,6 +55,12 @@ const (
 	ParamIface       = "iface"
 	ParamTraceKernel = "trace-pipe"
 
+	// Keep in sync with `bpf/kernel_stack.bpf.c`
+	kernelStackMapName       = "__kernel_stack_trace_map"
+	kernelStackFuncName      = "__get_kernel_stack"
+	kernelStackMapMaxEntries = 10000
+	perfMaxStackDepth        = 127
+
 	kernelTypesVar = "kernelTypes"
 )
 
@@ -167,6 +173,8 @@ type ebpfInstance struct {
 
 	enums      map[string]*btf.Enum
 	converters map[datasource.DataSource][]func(ds datasource.DataSource, data datasource.Data) error
+
+	kernelStackIdMap *ebpf.Map
 
 	gadgetCtx operators.GadgetContext
 }
@@ -554,7 +562,16 @@ func (i *ebpfInstance) Start(gadgetCtx operators.GadgetContext) error {
 
 	// Attach programs
 	for progName, p := range i.collectionSpec.Programs {
-		l, err := i.attachProgram(gadgetCtx, p, i.collection.Programs[progName])
+		prog := i.collection.Programs[progName]
+
+		// load kernel stack extension if needed
+		kernelStackExtLink, err := i.loadKernelStackExtensionIfRequired(prog)
+		if err != nil {
+			i.Close()
+			return fmt.Errorf("loading kernel stack extension for %q: %w", progName, err)
+		}
+
+		l, err := i.attachProgram(gadgetCtx, p, prog)
 		if err != nil {
 			i.Close()
 			return fmt.Errorf("attaching eBPF program %q: %w", progName, err)
@@ -562,6 +579,9 @@ func (i *ebpfInstance) Start(gadgetCtx operators.GadgetContext) error {
 
 		if l != nil {
 			i.links = append(i.links, l)
+			if kernelStackExtLink != nil {
+				i.links = append(i.links, kernelStackExtLink)
+			}
 		}
 
 		// We need to store iterators' links because we need them to run the programs
