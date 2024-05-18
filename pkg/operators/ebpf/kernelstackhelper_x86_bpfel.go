@@ -53,6 +53,7 @@ type kernelstackhelperSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type kernelstackhelperProgramSpecs struct {
+	GetKernelStack *ebpf.ProgramSpec `ebpf:"__get_kernel_stack"`
 }
 
 // kernelstackhelperMapSpecs contains maps before they are loaded into the kernel.
@@ -94,10 +95,13 @@ func (m *kernelstackhelperMaps) Close() error {
 //
 // It can be passed to loadKernelstackhelperObjects or ebpf.CollectionSpec.LoadAndAssign.
 type kernelstackhelperPrograms struct {
+	GetKernelStack *ebpf.Program `ebpf:"__get_kernel_stack"`
 }
 
 func (p *kernelstackhelperPrograms) Close() error {
-	return _KernelstackhelperClose()
+	return _KernelstackhelperClose(
+		p.GetKernelStack,
+	)
 }
 
 func _KernelstackhelperClose(closers ...io.Closer) error {

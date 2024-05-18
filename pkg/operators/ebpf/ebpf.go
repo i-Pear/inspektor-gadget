@@ -19,6 +19,7 @@ package ebpfoperator
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -546,6 +547,12 @@ func (i *ebpfInstance) Start(gadgetCtx operators.GadgetContext) error {
 	}
 	collection, err := ebpf.NewCollectionWithOptions(i.collectionSpec, opts)
 	if err != nil {
+		var verr *ebpf.VerifierError
+		if errors.As(err, &verr) {
+			for _, e := range verr.Log {
+				fmt.Println(e)
+			}
+		}
 		return fmt.Errorf("creating eBPF collection: %w", err)
 	}
 	i.collection = collection

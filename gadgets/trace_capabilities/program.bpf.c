@@ -13,7 +13,7 @@
 #include <gadget/buffer.h>
 #include <gadget/macros.h>
 #include <gadget/mntns_filter.h>
-#include <gadget/stack_map.h>
+#include <gadget/kernel_stack_map.h>
 
 // include/linux/security.h
 #define CAP_OPT_NOAUDIT (1UL << 1)

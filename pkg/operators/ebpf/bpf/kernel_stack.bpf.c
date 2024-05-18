@@ -18,6 +18,7 @@ struct {
 	__uint(max_entries, KERNEL_STACK_MAP_MAX_ENTRIES);
 } __kernel_stack_trace_map SEC(".maps");
 
+SEC("freplace/__get_kernel_stack")
 long __get_kernel_stack(struct pt_regs *ctx)
 {
 	return bpf_get_stackid(ctx, &__kernel_stack_trace_map,

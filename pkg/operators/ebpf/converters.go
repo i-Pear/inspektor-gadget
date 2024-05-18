@@ -122,17 +122,18 @@ func (i *ebpfInstance) initStackConverter(gadgetCtx operators.GadgetContext) err
 			if in == nil {
 				continue
 			}
-			if i.kernelStackIdMap == nil {
-				return errors.New("kernel stack map is not initialized but used. " +
-					"if you are using `gadget_kernel_stack` as event field, " +
-					"try to include <gadget/kernel_stack_map.h>")
-			}
 			in.SetHidden(true, false)
 			out, err := ds.AddField(in.Name()+"_symbolized", api.Kind_String)
 			if err != nil {
 				return err
 			}
 			converter := func(ds datasource.DataSource, data datasource.Data) error {
+				if i.kernelStackIdMap == nil {
+					return errors.New("kernel stack map is not initialized but used. " +
+						"if you are using `gadget_kernel_stack` as event field, " +
+						"try to include <gadget/kernel_stack_map.h>")
+				}
+
 				inBytes := in.Get(data)
 				stackId := ds.ByteOrder().Uint32(inBytes)
 				if stackId == 0 {

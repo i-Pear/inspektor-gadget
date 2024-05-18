@@ -18,7 +18,7 @@
 #include <gadget/types.h>
 #include <gadget/macros.h>
 #include <gadget/core_fixes.bpf.h>
-#include <gadget/stack_map.h>
+#include <gadget/kernel_stack_map.h>
 
 #define GADGET_TYPE_TRACING
 #include <gadget/sockets-map.h>

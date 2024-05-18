@@ -9,7 +9,7 @@
 /* Placeholder only here, needs to be replaced by bpf extension using BPF_F_REPLACE */
 __attribute__((optnone)) long __get_kernel_stack(struct pt_regs *ctx)
 {
-	return (long)ctx;
+	return 0;
 }
 
 static __always_inline long gadget_get_kernel_stack(void *ctx)
