@@ -6,6 +6,7 @@ BUILDER_IMAGE ?= ghcr.io/inspektor-gadget/ebpf-builder:latest
 IG ?= ig
 COSIGN ?= cosign
 GADGETS = \
+	trace_capabilities \
 	trace_dns \
 	trace_exec \
 	trace_lsm \

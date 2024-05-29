@@ -1,0 +1,83 @@
+name: trace capabilities
+description: trace security capabilitiy checks
+homepageURL: https://inspektor-gadget.io/
+documentationURL: https://inspektor-gadget.io/docs
+sourceURL: https://github.com/inspektor-gadget/inspektor-gadget/
+tracers:
+  capabilities:
+    mapName: events
+    structName: cap_event
+structs:
+  cap_event:
+    fields:
+    - name: mntnsid
+      description: mount namespace inode id
+      attributes:
+        template: ns
+    - name: current_userns
+      attributes:
+        template: ns
+    - name: target_userns
+      attributes:
+        template: ns
+    - name: cap_effective
+      attributes:
+        width: 20
+        alignment: left
+        ellipsis: end
+    - name: timestamp
+      attributes:
+        template: timestamp
+    - name: pid
+      attributes:
+        template: pid
+    - name: cap
+      attributes:
+        width: 16
+        alignment: left
+        ellipsis: end
+    - name: tgid
+      attributes:
+        template: pid
+    - name: uid
+      attributes:
+        template: uid
+    - name: gid
+      attributes:
+        template: uid
+    - name: audit
+      attributes:
+        width: 11
+        alignment: left
+        ellipsis: end
+    - name: insetid
+      attributes:
+        width: 11
+        alignment: left
+        ellipsis: end
+    - name: syscall
+      attributes:
+        width: 20
+        alignment: left
+        ellipsis: end
+    - name: task
+      description: command
+      attributes:
+        template: comm
+    - name: kstack
+      description: kernel stack
+      attributes:
+        width: 10
+        alignment: left
+        ellipsis: end
+    - name: capable
+      description: if the process has the requested capability
+      attributes:
+        width: 5
+        alignment: left
+        ellipsis: end
+ebpfParams:
+  print_stack:
+    key: print-stack
+    defaultValue: "true"
+    description: controls whether the gadget will send kernel stack to userspace
