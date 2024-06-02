@@ -150,16 +150,19 @@ GADGET_TRACER(capabilities, events, cap_event);
 const volatile bool print_stack = true;
 GADGET_PARAM(print_stack);
 
-__attribute__((optnone)) void trigger_uprobe(struct pt_regs *ctx)
-{
-	bpf_tail_call(ctx, &uprobe_fd, 0);
-}
+// __attribute__((optnone)) int trigger_uprobe(struct pt_regs *ctx)
+// {
+// 	long ret = bpf_tail_call(ctx, &uprobe_fd, 0);
+// 	bpf_printk("bpf_tail_call: %ld", ret);
+// 	return 0;
+// }
 
 SEC("kprobe/cap_capable")
 int BPF_KPROBE(ig_trace_cap_e, const struct cred *cred,
 	       struct user_namespace *targ_ns, int cap, int cap_opt)
 {
-	trigger_uprobe(ctx);
+	int ret = bpf_tail_call(ctx, &uprobe_fd, 0);
+	bpf_printk("bpf_tail_call failed.");
 
 	__u32 pid;
 	u64 mntns_id;

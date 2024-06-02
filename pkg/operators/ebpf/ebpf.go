@@ -21,10 +21,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"reflect"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/btf"
@@ -485,6 +487,31 @@ func (i *ebpfInstance) tracePipe(gadgetCtx operators.GadgetContext) error {
 	return nil
 }
 
+func recvFD(conn *net.UnixConn) (int, error) {
+	oob := make([]byte, syscall.CmsgSpace(4))
+	n, oobn, _, _, err := conn.ReadMsgUnix(nil, oob)
+	if err != nil {
+		return -1, err
+	}
+
+	if n == 0 || oobn == 0 {
+		return -1, fmt.Errorf("no file descriptor received")
+	}
+
+	scms, err := syscall.ParseSocketControlMessage(oob)
+	if err != nil {
+		return -1, err
+	}
+
+	for _, scm := range scms {
+		if fds, err := syscall.ParseUnixRights(&scm); err == nil {
+			return fds[0], nil
+		}
+	}
+
+	return -1, fmt.Errorf("no valid file descriptor received")
+}
+
 func (i *ebpfInstance) Start(gadgetCtx operators.GadgetContext) error {
 	i.logger.Debugf("starting ebpfInstance")
 
@@ -530,18 +557,27 @@ func (i *ebpfInstance) Start(gadgetCtx operators.GadgetContext) error {
 		return err
 	}
 	mapReplacements["uprobe_fd"] = i.uprobeFdMap
-	socketPidAndFdBuf, err := os.ReadFile("/tmp/otel-native_tracer_entry.sock")
+
+	const socketPath = "/tmp/otel-native_tracer_entry.sock"
+	addr, err := net.ResolveUnixAddr("unix", socketPath)
 	if err != nil {
 		return err
 	}
-	socketPidAndFdStr := string(socketPidAndFdBuf)
-	parts := strings.Split(socketPidAndFdStr, "\n")
-	pid := parts[0]
-	fd := parts[1]
-	i.uprobeFdHolder, err = os.Open(fmt.Sprintf("/proc/%s/fd/%s", pid, fd))
+
+	conn, err := net.DialUnix("unix", nil, addr)
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
+
+	fd, err := recvFD(conn)
+	if err != nil {
+		return err
+	}
+
+	i.uprobeFdHolder = os.NewFile(uintptr(fd), "otel_handle")
+	fmt.Printf("i.uprobeFdHolder.Fd(): %d\n", i.uprobeFdHolder.Fd())
+
 	i.uprobeFdMap.Update(uint32(0), uint32(i.uprobeFdHolder.Fd()), ebpf.UpdateAny)
 
 	// Set gadget params

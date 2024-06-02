@@ -243,3 +243,16 @@ require (
 replace k8s.io/component-base => k8s.io/component-base v0.0.0-20240417101527-62c04b35eff6
 
 replace oras.land/oras-go/v2 => oras.land/oras-go/v2 v2.0.0-20240123101058-64fedf45bfd3
+
+replace (
+	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.30.1
+	k8s.io/endpointslice => k8s.io/endpointslice v0.30.1
+	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.30.1
+	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.30.1
+	k8s.io/kube-proxy => k8s.io/kube-proxy v0.30.1
+	k8s.io/kubectl => k8s.io/kubectl v0.30.1
+	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.30.1
+	k8s.io/metrics => k8s.io/metrics v0.30.1
+	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.30.1
+	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.30.1
+)

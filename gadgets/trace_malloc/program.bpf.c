@@ -69,6 +69,27 @@ int trace_sched_process_exit(void *ctx)
 	return 0;
 }
 
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__type(key, __u32);
+	__type(value, __u32);
+	__uint(max_entries, 1);
+} uprobe_fd SEC(".maps");
+
+__attribute__((optnone)) int trigger_uprobe(struct pt_regs *ctx)
+{
+	bpf_tail_call(ctx, &uprobe_fd, 0);
+	bpf_printk("bpf_tail_call failed.");
+	return 0;
+}
+
+// /* malloc */
+// SEC("uprobe/libc:malloc")
+// int BPF_UPROBE(trace_uprobe_malloc, size_t size)
+// {
+// 	return trigger_uprobe(ctx);
+// }
+
 GADGET_TRACER_MAP(events, 1024 * 256);
 GADGET_TRACER(malloc, events, event);
 
@@ -91,6 +112,8 @@ static __always_inline int gen_alloc_exit(struct pt_regs *ctx,
 	u32 tid;
 	u64 *size_ptr;
 	u64 size;
+
+	trigger_uprobe(ctx);
 
 	mntns_id = gadget_get_mntns_id();
 	if (gadget_should_discard_mntns_id(mntns_id))
