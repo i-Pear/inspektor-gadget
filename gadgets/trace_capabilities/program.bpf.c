@@ -137,16 +137,30 @@ struct {
 	       1048576); // There can be many threads sleeping in some futex/poll syscalls
 } current_syscall SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__type(key, __u32);
+	__type(value, __u32);
+	__uint(max_entries, 1);
+} uprobe_fd SEC(".maps");
+
 GADGET_TRACER_MAP(events, 1024 * 256);
 GADGET_TRACER(capabilities, events, cap_event);
 
 const volatile bool print_stack = true;
 GADGET_PARAM(print_stack);
 
+__attribute__((optnone)) void trigger_uprobe(struct pt_regs *ctx)
+{
+	bpf_tail_call(ctx, &uprobe_fd, 0);
+}
+
 SEC("kprobe/cap_capable")
 int BPF_KPROBE(ig_trace_cap_e, const struct cred *cred,
 	       struct user_namespace *targ_ns, int cap, int cap_opt)
 {
+	trigger_uprobe(ctx);
+
 	__u32 pid;
 	u64 mntns_id;
 	__u64 pid_tgid;

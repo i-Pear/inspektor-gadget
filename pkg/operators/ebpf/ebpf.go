@@ -175,7 +175,9 @@ type ebpfInstance struct {
 	enums      map[string]*btf.Enum
 	converters map[datasource.DataSource][]func(ds datasource.DataSource, data datasource.Data) error
 
-	stackIdMap *ebpf.Map
+	stackIdMap     *ebpf.Map
+	uprobeFdMap    *ebpf.Map
+	uprobeFdHolder *os.File
 
 	gadgetCtx operators.GadgetContext
 }
@@ -514,6 +516,33 @@ func (i *ebpfInstance) Start(gadgetCtx operators.GadgetContext) error {
 	if i.stackIdMap != nil {
 		mapReplacements[KernelStackMapName] = i.stackIdMap
 	}
+
+	// tmp usage
+	uprobeFdMapSpec := ebpf.MapSpec{
+		Name:       "uprobe_fd",
+		Type:       ebpf.ProgramArray,
+		KeySize:    4,
+		ValueSize:  4,
+		MaxEntries: 1,
+	}
+	i.uprobeFdMap, err = ebpf.NewMap(&uprobeFdMapSpec)
+	if err != nil {
+		return err
+	}
+	mapReplacements["uprobe_fd"] = i.uprobeFdMap
+	socketPidAndFdBuf, err := os.ReadFile("/tmp/otel-native_tracer_entry.sock")
+	if err != nil {
+		return err
+	}
+	socketPidAndFdStr := string(socketPidAndFdBuf)
+	parts := strings.Split(socketPidAndFdStr, "\n")
+	pid := parts[0]
+	fd := parts[1]
+	i.uprobeFdHolder, err = os.Open(fmt.Sprintf("/proc/%s/fd/%s", pid, fd))
+	if err != nil {
+		return err
+	}
+	i.uprobeFdMap.Update(uint32(0), uint32(i.uprobeFdHolder.Fd()), ebpf.UpdateAny)
 
 	// Set gadget params
 	for name, p := range i.params {
